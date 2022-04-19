@@ -1,10 +1,12 @@
 # INSTALL
 
+You need a server first.
+
 # 0. assemble things
 
- * pi zero 2 w + 8 gb card, usb speakermic, camera, 2 servos
- * see [mozbots_bom.csv](BOM)
- * and [mozbots_fritzing.png](diagram)
+ * pi zero 2 w + 8 gb card, usb speakermic (or amp and respeaker 4 usb), pi camera, 2 servos
+ * see [BOM](mozbots_bom.csv)
+ * and [Fritzing diagram](mozbots_fritzing.png)
 
 # 1. burn a card
 
