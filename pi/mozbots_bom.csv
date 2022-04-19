@@ -1,0 +1,18 @@
+Component,Link,Cost per unit
+Raspberry Pi Zero 2 w,,13.5
+Pan & tilt assembly(with 2 servos),https://coolcomponents.co.uk/products/pan-tilt-bracket-kit-single-attachment,7.32
+Pi camera,https://shop.pimoroni.com/products/raspberry-pi-camera-module-v2?variant=19833929735,24
+Jumper cables,e.g. https://shop.pimoroni.com/products/jumper-jerky?variant=348491271,1
+Mic array,https://shop.pimoroni.com/products/respeaker-usb-mic-array?variant=32289255358547,63
+speaker,https://shop.pimoroni.com/products/mini-speaker-4-3w?variant=2976551927818,3
+amp,(PAM8302) https://shop.pimoroni.com/collections/electronics/products/adafruit-mono-2-5w-class-d-audio-amplifier-pam8302?variant=3075960766474,3.9
+Jack,could use something like https://cpc.farnell.com/pro-signal/audl-73-1m/lead-3-5mm-s-jack-bare-end-1m/dp/AV22649?st=male%20jacks or just cut up 3.,1.12
+extra cable for camera,https://thepihut.com/products/raspberry-pi-zero-camera-adapter?variant=20123218500&currency=GBP&msclkid=02fc5a0cbe1f16019c48383169544fc5,2.94
+Arm / stand,https://www.amazon.co.uk/InnoGear-Professional-Adjustable-Microphone-Suspension/dp/B01NH31CLK/ref=sr_1_4_sspa,9.99
+Foam part,we went with https://www.amazon.co.uk/dp/B085W8WK7N,5
+PSU for pi,https://shop.pimoroni.com/products/raspberry-pi-12-5w-micro-usb-power-supply?variant=39493050237011,7.2
+face,5x5 matrix: https://shop.pimoroni.com/products/5x5-rgb-matrix-breakout?variant=21375941279827 (£9),9
+8gb sd card,,8
+headers,,
+USB to microUSB OTG Converter Shim,https://shop.pimoroni.com/products/usb-to-microusb-otg-converter-shim?variant=10475912007,1.75
+,per unit,160.72

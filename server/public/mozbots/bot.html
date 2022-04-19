@@ -1,0 +1,179 @@
+<html>
+<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+
+<body>
+<div id="menu">
+  <p>Your ID:</p>
+  <p id="uuid"></p>
+  <p>Status</p>
+  <p id="status"></p>
+  <input type="text" id="command" value="hello" />
+  <button onclick="sendData()">Send data</button>
+</div>
+
+<div id="av"></div>
+<div id="data"></div>
+
+
+</body>
+
+<script>
+
+//for talking to the pi's websockets
+const url = "ws://localhost:80";
+let move_socket = new WebSocket(url);
+
+var myname = window.location.hash.substr(1);
+if( myname == ""){
+  console.error("no name chosen, so random name picked. Use #name.");
+}
+var peer = new Peer([myname],{key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+var conn_for_later;
+
+function handlePeerDisconnect(peerId) {
+  // manually close the peer connections
+  for (let conns in peer.connections) {
+    peer.connections[conns].forEach((conn, index, array) => {
+
+        let remoteElement = document.querySelector("#id_"+peerId);
+        console.log("comparing remote id ",remoteElement,"and",conn.peer == peerId,conn.peer);
+        if(conn.peer == peerId){ //only remove the selected one
+          if(remoteElement){
+            remoteElement.parentNode.removeChild(remoteElement);
+          }
+          console.log(`closing remote ${conn.connectionId} peerConnection (${index + 1}/${array.length})`, conn.peerConnection);
+          conn.peerConnection.close();
+
+          // close it using peerjs methods
+          if (conn.close){
+           conn.close();
+          }
+        }else{
+          console.log("no match with selected peer, not closing");
+        }
+
+    });
+  }
+}
+
+peer.on('connection', function(conn) { 
+   console.log("connection");
+   conn_for_later = conn;
+   conn.on('data', function(data) {
+     console.log('Received and sending', data);
+     document.querySelector("#data").innerHTML = data;
+     move_socket.send(data);
+   });
+   conn.on('disconnected', function() {
+     console.log('disconnected');
+   });
+   conn.on('close', function() {
+     console.log('closed remote',conn);
+     handlePeerDisconnect(conn.peer);
+   });
+});
+
+const sendData = () => {
+   const command = document.querySelector("#command").value;
+   console.log("sending command",command);
+   conn_for_later.send(command);
+}
+
+//from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
+
+peer.on("open", function (id) {
+   console.log('My peer ID is: ' + id);
+   document.getElementById("uuid").textContent = id;
+   document.getElementById("status").textContent = "connected";
+});
+
+peer.on("disconnected", function (id) {
+   document.getElementById("status").textContent = "disconnected";
+});
+
+
+peer.on("call", (call) => {
+    //accept all calls
+    //mic and camera from us
+    document.getElementById("status").textContent = "get user media";
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+
+        // answer the call
+        document.getElementById("status").textContent = "answering call";
+        console.log("stream",stream.getTracks());
+        call.answer(stream);
+
+        call.on("stream", (remoteStream) => {
+          document.getElementById("status").textContent = "got stream";
+          console.log("got remote stream, creating audio")
+          console.log("remote stream",remoteStream);
+          console.log("peer for remote stream??",call);
+
+          // when we receive the remote stream, play it
+          // we expect audio only
+          // @@ do we mute the remote participant?
+          const audio = document.createElement('audio');
+          audio.id = "id_"+call.peer;
+          audio.controls = 'true';
+          document.getElementById("av").appendChild(audio);
+          audio.srcObject = remoteStream;
+          audio.play();
+          console.log("arrived - sending to server");
+          move_socket.send("arrived");
+        });
+
+        call.on("error", (err) => {
+          document.getElementById("status").textContent = "error "+err;
+          console.log("ERROR",err);
+        });
+
+        //these two never fire. Have to use data connection instead (see above)
+        //https://stackoverflow.com/questions/64651890/peerjs-close-video-call-not-firing-close-event
+        call.on("close", function() { 
+          console.log("call closed",call);
+        });
+
+        call.on("disconnected", function() { 
+          console.log("call disconnected",call);
+        });
+
+      })
+      .catch((err) => {
+        document.getElementById("status").textContent = "Failed to get local stream:"+err;
+        console.log("Failed to get local stream:", err);
+      });
+});
+
+// a websocket server running on the pi
+// for sending lights and movement messages
+
+move_socket.onopen = function(e) {
+  console.log("[open] Connection established");
+};
+
+move_socket.onmessage = function(event) {
+  console.log(`[message] Data received from server: ${event.data}`);
+};
+
+move_socket.onclose = function(event) {
+  if (event.wasClean) {
+    console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+  } else {
+    // e.g. server process killed or network down
+    // event.code is usually 1006 in this case
+    console.log('[close] Connection died - reconnecting');
+  }
+  move_socket = new WebSocket(url);
+};
+
+
+move_socket.onerror = function(error) {
+  console.log(`[error] ${error.message}`);
+};
+
+
+
+</script>
+</html>

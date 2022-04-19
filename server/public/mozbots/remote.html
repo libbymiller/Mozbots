@@ -1,0 +1,273 @@
+<html>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+
+<style type="text/css">
+.emoji {
+  display: inline-block;
+  padding: 0;
+  margin: 0.5em 0.1em 0 0.1em;
+  font-size: 2em;
+  position: relative;
+  line-height: 1;
+  cursor: pointer;
+}
+.off::after {
+  content: '❌';
+  position: absolute;
+  font-size: 0.8em;
+  top: 10%;
+  left: 10%;
+  opacity: 0.9;
+}
+#menu {
+  display: inline-block;
+  padding: 0;
+  margin: 0.5em 0.1em 0 0.1em;
+  font-size: 2em;
+  position: relative;
+  line-height: 1;
+}
+
+video {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.content {
+  position: fixed;
+  z-index: 10; 
+  top: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.3);
+  color: #f1f1f1;
+  width: 100%;
+  padding: 20px;
+}
+
+</style>
+
+<body>
+<div class ="content">
+ <div id ="menu">
+  <span>Status: </span>
+  <span id="status"></span>
+ </div>
+
+ <div>
+   <span title="mic muted" id="mute"  class="emoji microphone off">🎤</span>
+   <span>&nbsp;&nbsp;</span>
+   <span title="start call"  class="emoji" onclick="callUser()">🔛</span>
+   <span title="end call"  class="emoji" onclick="endCall()">🔚</span>
+   <span>&nbsp;&nbsp;</span>
+   <span title="move bot camera up"  class="emoji" onclick="sendData('up_a_bit'); setStatus('Requesting bot camera up');">⬆️</span>
+   <span title="move bot camera down"  class="emoji" onclick="sendData('down_a_bit'); setStatus('Requesting bot camera down');">⬇️</span>
+   <span title="move bot camera left"  class="emoji" onclick="sendData('left_a_bit'); setStatus('Requesting bot camera left');">⬅️</span>
+   <span title="move bot camera right"  class="emoji" onclick="sendData('right_a_bit'); setStatus('Requesting bot camera right');">➡️</span>
+ </div>
+</div>
+
+<div id="av"></div>
+<div id="data"></div>
+
+</body>
+
+<script>
+
+var peer = new Peer({key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+
+var bot_id = window.location.hash.substr(1);
+if( bot_id == ""){
+  console.error("no bot_id chosen, so no connection will be possible. Use #name.");
+}
+
+function setStatus(text){
+   document.getElementById("status").textContent = text;
+}
+
+
+var conn_for_later;
+var call;
+let local_stream = null;
+
+
+peer.on('connection', function(conn) { 
+   console.log("connection");
+   conn.on('close', function() {
+     console.log('closed remote',conn);
+   });
+});
+
+const sendData = (command) => {
+   console.log("sending command",command);
+   conn_for_later.send(command);
+}
+
+
+//mostly from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
+
+peer.on("open", function (id) {
+   console.log('My peer ID is: ' + id);
+   setStatus("Data connection open, click 'on' to access audio / video");
+});
+
+peer.on('error', function(err) { 
+   console.log('Error ' + err);
+   setStatus(err);   
+});
+
+
+function endCall(){
+   if(call!=null){
+     call.close();//this doesn't do anything
+   }
+   console.log("closing call");
+   conn_for_later.close();
+   let remoteElement = document.querySelector("#"+bot_id);
+   remoteElement.parentNode.removeChild(remoteElement);
+}
+
+async function callUser() {
+
+  // get the id entered by the user
+  document.getElementById("status").textContent = "getting user media, audio only";
+  setStatus("Requesting user audio");
+  const peerId = bot_id;
+
+// connect to data
+  conn_for_later = peer.connect(peerId);
+  conn_for_later.on('data', function(data) {
+     console.log('Received', data);
+     document.querySelector("#data").innerHTML = data;
+  });
+
+  //get the mic only
+  local_stream = await navigator.mediaDevices.getUserMedia({
+    video: false,
+    audio: true,
+  });
+
+  // make the call
+  // https://github.com/peers/peerjs/issues/147#issuecomment-647498880
+        var options = {
+          'constraints': {
+//            'mandatory': {
+  //            'OfferToReceiveAudio': true,
+    //          'OfferToReceiveVideo': true
+      //      },
+            offerToReceiveAudio: 1,
+            offerToReceiveVideo: 1,
+          }
+        }
+
+  console.log("stream",local_stream.getTracks());
+
+//pre-emptively mute my stream
+  local_stream.getTracks()[0].enabled = false;
+
+  console.log("stream (muted)",local_stream.getTracks());
+
+  call = peer.call(peerId, local_stream, options);
+  setStatus("Calling "+bot_id+". My stream is muted");
+
+  let media_ids = [];
+
+  call.on("stream", (remoteStream) => {
+   try{
+    setStatus("Got remote video and audio");
+    console.log("got remote stream, creating video",remoteStream.getTracks())
+
+    // when we receive the remote stream, video and audio, play it
+    // getting dupes!
+    //shoudl do this better
+    let the_id = remoteStream.getTracks()[0].id;
+    if(media_ids.includes(the_id)){
+      console.log("got media id ",the_id);
+    }else{  
+      const video = document.createElement('video');
+      video.controls = 'true';
+      video.autoplay = 'true';
+      video.setAttribute("playsinline",'true');
+      video.id = bot_id;
+      document.getElementById("av").appendChild(video);
+      video.srcObject = remoteStream;
+      video.play();
+      media_ids.push(the_id);
+    }
+
+   }catch(e){
+     console.error("oops",e);
+   }
+  });
+  call.on("error", (err) => {
+    setStatus("Error "+err);
+    console.log("ERRORRR",err);
+  });
+  call.on('close', () => {
+    setStatus("Ended call to "+bot_id);
+  })
+}
+
+
+//mute / unmute my mic
+document.querySelector('#mute').onclick = function() {
+  if(this.classList.contains("off")){
+     this.classList.remove("off");
+     setStatus("Unmuting myself");
+     console.log("unmuting!");
+     local_stream.getTracks()[0].enabled = true;
+  }else{
+     this.classList.add("off");
+     setStatus("Muting myself");
+     console.log("muting!");
+     local_stream.getTracks()[0].enabled = false;
+  }
+};
+
+
+//keycodes for cntrolling
+document.onkeydown = checkKey;
+
+function checkKey(e) {
+  e = e || window.event;
+  console.log(e.keyCode);
+  if(e.keyCode == '38' || e.keyCode == '40' || e.keyCode == '37' || e.keyCode == '39'){
+    console.log("prevent default");
+    e.preventDefault();
+  }
+
+  switch (e.keyCode) {
+    case 38:
+      console.log("up",e.keyCode);
+      // up arrow
+      sendData("up_a_bit");
+      setStatus("Requesting bot camera up");
+      break;
+    case 40:
+      console.log("down",e.keyCode);
+      // down arrow
+      sendData("down_a_bit");
+      setStatus("Requesting bot camera down");
+      break;
+    case 37:
+      // left arrow
+      console.log("left",e.keyCode);
+      sendData("left_a_bit");
+      setStatus("Requesting bot camera left");
+      break;
+    case 39:
+      console.log("right",e.keyCode);
+      // right arrow
+      sendData("right_a_bit");
+      setStatus("Requesting bot camera right");
+      break;
+  }
+}
+
+
+</script>
+</html>
