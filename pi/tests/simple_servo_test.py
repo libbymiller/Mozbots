@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
-import sys
-import time
-import os
-import traceback
-import math
-
 
 import RPi.GPIO as GPIO
-
-
+import time
 from time import sleep
-
-from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 
 # setup the GPIO pin for the servo
 servo_pin_lr = 12
