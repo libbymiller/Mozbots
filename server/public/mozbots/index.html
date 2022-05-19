@@ -1,0 +1,85 @@
+<html>
+<script src="../peerjs.js"></script>
+
+<body>
+<div id="status">
+</div>
+<div id="data">
+</div>
+</body>
+
+<script>
+
+
+document.querySelector("#status").innerHTML = "No data yet as of "+new Date();
+
+//also connect to the websocket and get everything connected?? better woudl be serverside
+
+const myname = "index";
+var peer = new Peer([myname],{key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+
+let connected_things = {};
+
+peer.on("open", function (id) {
+    console.log('My peer ID is: ' + id,peer.socket._socket);
+    peer.socket._socket.addEventListener('message', event => { 
+      console.log("got a message",event.data);
+      let msg = JSON.parse(event.data);
+
+      if(msg.type == "PING"){
+         let el = document.querySelector("#id_"+msg.src);
+         if(!el){
+           el = document.createElement("p");
+           el.setAttribute("id","id_"+msg.src)
+           document.querySelector("#data").appendChild(el);
+         }
+         let ls = new Date();
+         el.innerHTML = msg.src+" is available - last seen " +ls + " - "+msg.payload.size + " connected. Connect to <a href='remote.html#"+msg.src+"' target='_blank'>"+msg.src+"</a>";
+         connected_things[msg.src] = ls;
+      }
+    });
+});
+
+
+peer.on("disconnected", function (id) {
+   console.log("disconnected peer",id);
+//   document.getElementById("status").textContent = "disconnected";
+   //peer.reconnect();
+});
+
+//keep checking for stuff
+const interval = 30000;
+
+setInterval(function () {
+
+  for (let pid in connected_things) {
+    if (connected_things.hasOwnProperty(pid)) {
+       let ls = connected_things[pid];
+       if(new Date() - new Date(ls) > interval ){
+         console.log("connection lost for "+pid);
+         let el = document.querySelector("#id_"+pid);
+         if(!el){
+           el = document.createElement("p");
+           el.setAttribute("id","id_"+pid)
+           document.querySelector("#data").appendChild(el);
+         }
+         el.innerHTML = pid+" is lost - last seen " +ls;
+         delete connected_things[pid];
+       }else{
+//         console.log(pid+" ok ",new Date - new Date(ls))
+       }
+    }
+  }  
+
+  console.log("connected_things",connected_things);
+  var size = Object.keys(connected_things).length;
+  if(size == 0){
+     document.querySelector("#status").innerHTML = "No bots found as of "+new Date();
+  }else{
+     document.querySelector("#status").innerHTML = size+" bots found as of "+new Date();
+  }
+
+}, interval);
+
+</script>
+</html>

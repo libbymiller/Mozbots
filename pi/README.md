@@ -53,12 +53,13 @@ reboot
 
 note that 92 is broken - https://forums.raspberrypi.com/viewtopic.php?p=1919570&sid=175fb469cd6e74b67f364d46765b827c#p1919570
 
+(it's still useful to install 92 to get the dependencies)
+
 if you end up with 92, try
 
     wget  "http://archive.raspberrypi.org/debian/pool/main/c/chromium-browser/chromium-browser_88.0.4324.187-rpt1_armhf.deb"
     wget "http://archive.raspberrypi.org/debian/pool/main/c/chromium-browser/chromium-codecs-ffmpeg-extra_88.0.4324.187-rpt1_armhf.deb"
     sudo apt install --no-install-recommends --allow-downgrades --allow-change-held-packages ./chromium-browser_88.0.4324.187-rpt1_armhf.deb ./chromium-codecs-ffmpeg-extra_88.0.4324.187-rpt1_armhf.deb
-
 
     chromium-browser --version
 
@@ -107,7 +108,7 @@ clone this repo in /home/pi
     cd
     git clone https://github.com/libbymiller/Mozbots
 
-    cp /home/pi/Mozbots/start_all.sh .
+    cp /home/pi/Mozbots/pi/start_all.sh .
 
     chmod a+x start_all.sh 
 
@@ -118,7 +119,7 @@ clone this repo in /home/pi
     sudo pip3 install SimpleWebSocketServer #sudo because we're going to run it as root
 
     cd
-    cp /home/pi/Mozbots/websocketServer.py .
+    cp /home/pi/Mozbots/pi/websocketServer.py .
 
 # 7. run on boot
 
@@ -134,3 +135,25 @@ reboot
 (assuming you have installed a server (see server instructions) at myserver.example.com) - go to 
 
 https://myserver.example.com/mozbots/remote.html#mozbot
+
+
+# Neopixel notes
+
+https://magpi.raspberrypi.com/articles/neopixels-python
+curl https://raw.githubusercontent.com/themagpimag/monthofmaking2019/master/DisplayLights/rollcall.py
+
+LED_COUNT   = 24      # Number of LED pixels.
+LED_ORDER = neopixel.GRBW
+
+
+sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
+sudo pip3 install adafruit-blinka
+sudo apt install python3-numpy
+
+----
+
+todo
+
+lower volume
+
+

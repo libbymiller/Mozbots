@@ -1,5 +1,5 @@
 <html>
-<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+<script src="../peerjs.js"></script>
 
 <body>
 <div id="menu">
@@ -9,11 +9,11 @@
   <p id="status"></p>
   <input type="text" id="command" value="hello" />
   <button onclick="sendData()">Send data</button>
+  <button onclick="disconnect()">disconnect</button>
 </div>
 
 <div id="av"></div>
 <div id="data"></div>
-
 
 </body>
 
@@ -21,57 +21,90 @@
 
 //for talking to the pi's websockets
 const url = "ws://localhost:80";
-let move_socket = new WebSocket(url);
+let move_socket = null;
+
+try{
+  move_socket = new WebSocket(url);
+}catch(e){
+  console.log("could not connect to pi",e);
+}
 
 var myname = window.location.hash.substr(1);
 if( myname == ""){
   console.error("no name chosen, so random name picked. Use #name.");
 }
-var peer = new Peer([myname],{key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+
+var peer = new Peer(
+ [myname],
+ {key: 'peerjs', host: 'myserver.example.com', path: "/", debug:3, port: 443, secure: true,
+   config: {'iceServers': [
+            { url: 'turn:myserver.example.com:3478?transport=udp', username: 'mozbot1', credential: 'mozbot1' },
+            { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'mozbot1', credential: 'mozbot1'}
+          ]}
+ }
+);
+
+
 var conn_for_later;
 
 function handlePeerDisconnect(peerId) {
+  console.log("handlePeerDisconnect");
   // manually close the peer connections
   for (let conns in peer.connections) {
-    peer.connections[conns].forEach((conn, index, array) => {
+    peer.connections[conns].forEach((conn2, index, array) => {
 
         let remoteElement = document.querySelector("#id_"+peerId);
-        console.log("comparing remote id ",remoteElement,"and",conn.peer == peerId,conn.peer);
-        if(conn.peer == peerId){ //only remove the selected one
+        console.log("comparing remote id ",remoteElement,"and",conn2.peer == peerId,conn2.peer);
+        if(conn2.peer == peerId){ //only remove the selected one
           if(remoteElement){
             remoteElement.parentNode.removeChild(remoteElement);
           }
-          console.log(`closing remote ${conn.connectionId} peerConnection (${index + 1}/${array.length})`, conn.peerConnection);
-          conn.peerConnection.close();
-
-          // close it using peerjs methods
-          if (conn.close){
-           conn.close();
+          conn2.close();
+          console.log("conns2",peer.connections);
+          delete peer.connections[conn2.peer];          
+          console.log("gone - sending to pi");
+          try{
+            move_socket.send("gone");
+          }catch(e){
+            console.log("could not connect to pi",e);
           }
+
         }else{
           console.log("no match with selected peer, not closing");
         }
 
     });
   }
+
 }
 
 peer.on('connection', function(conn) { 
-   console.log("connection");
+   console.log("connection", peer.socket._socket);
    conn_for_later = conn;
    conn.on('data', function(data) {
      console.log('Received and sending', data);
      document.querySelector("#data").innerHTML = data;
-     move_socket.send(data);
+     try{
+       move_socket.send(data);
+     }catch(e){
+       console.log("could not connect to pi",e);
+     }
    });
    conn.on('disconnected', function() {
      console.log('disconnected');
+
    });
    conn.on('close', function() {
-     console.log('closed remote',conn);
+     console.log('closed remote dataaaa',conn);
      handlePeerDisconnect(conn.peer);
    });
 });
+
+
+const disconnect = () => {
+  console.log("manually disconnecting");
+  peer.disconnect();
+}
 
 const sendData = () => {
    const command = document.querySelector("#command").value;
@@ -82,14 +115,20 @@ const sendData = () => {
 //from https://medium.com/@otterlord/learn-peer-js-video-chat-app-bfaa0e976263
 
 peer.on("open", function (id) {
-   console.log('My peer ID is: ' + id);
+   console.log('My peer ID is: ' + id,peer.socket._socket);
+   console.log("peerids",peer.connections);
    document.getElementById("uuid").textContent = id;
    document.getElementById("status").textContent = "connected";
+   schedulePing();
 });
 
 peer.on("disconnected", function (id) {
+   console.log("disconnected peer",id);
    document.getElementById("status").textContent = "disconnected";
+//try reconnecting instead. shoudl be a wait in here or backing off
+   //peer.reconnect();
 });
+
 
 
 peer.on("call", (call) => {
@@ -97,7 +136,18 @@ peer.on("call", (call) => {
     //mic and camera from us
     document.getElementById("status").textContent = "get user media";
     navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
+
+      .getUserMedia({ video: {
+        width: {
+          ideal: 640
+        },
+        height: {
+          ideal: 480
+        },
+        frameRate: 10
+       }, 
+       audio: {sampleRate: 16000} })
+
       .then((stream) => {
 
         // answer the call
@@ -120,8 +170,12 @@ peer.on("call", (call) => {
           document.getElementById("av").appendChild(audio);
           audio.srcObject = remoteStream;
           audio.play();
-          console.log("arrived - sending to server");
-          move_socket.send("arrived");
+          console.log("arrived - sending to pi");
+          try{
+            move_socket.send("arrived");
+          }catch(e){
+            console.log("could not connect to pi",e);
+          }
         });
 
         call.on("error", (err) => {
@@ -129,14 +183,16 @@ peer.on("call", (call) => {
           console.log("ERROR",err);
         });
 
-        //these two never fire. Have to use data connection instead (see above)
         //https://stackoverflow.com/questions/64651890/peerjs-close-video-call-not-firing-close-event
         call.on("close", function() { 
-          console.log("call closed",call);
+          console.log("call closed",call,peer);
+          handlePeerDisconnect(peer._id);
         });
 
+        //these never fire (they do now!)
         call.on("disconnected", function() { 
           console.log("call disconnected",call);
+          handlePeerDisconnect(call.peer);
         });
 
       })
@@ -146,15 +202,58 @@ peer.on("call", (call) => {
       });
 });
 
+
+
+// schedule a heartbeat so we can tell whcih bots are still up!
+
+const pingInterval = 10000;
+
+schedulePing = function () {
+    let wsPingTimer = setTimeout(function () {
+      sendPing();
+    }, pingInterval);
+};
+
+wsOpen = function (){
+    return !!peer.socket._socket && peer.socket._socket.readyState === 1;
+}
+
+sendPing = function () {
+
+    console.log("sending ping!");
+
+    if (!wsOpen()) {
+      console.log("Cannot send heartbeat, because socket closed");
+      return;
+    }
+
+    let allpeers = 0;
+    Object.keys(peer.connections).forEach(function (key) {
+       var value = peer.connections[key];
+       if(value.length>1){
+          allpeers = allpeers +1;
+       }
+    })
+
+    try{
+      peer.socket._socket.send(JSON.stringify({"type":"PING","dst":"index","payload":{"size":allpeers}}));
+    }catch(e){
+      console.log("could not connect to the index page",e);
+    }
+    schedulePing();
+  };
+
+//end ping
+
 // a websocket server running on the pi
 // for sending lights and movement messages
 
 move_socket.onopen = function(e) {
-  console.log("[open] Connection established");
+  console.log("[open] Connection to pi established");
 };
 
 move_socket.onmessage = function(event) {
-  console.log(`[message] Data received from server: ${event.data}`);
+  console.log(`[message] Data received from pi server: ${event.data}`);
 };
 
 move_socket.onclose = function(event) {
@@ -170,7 +269,7 @@ move_socket.onclose = function(event) {
 
 
 move_socket.onerror = function(error) {
-  console.log(`[error] ${error.message}`);
+  console.log(`[error] from pi ${error.message}`);
 };
 
 

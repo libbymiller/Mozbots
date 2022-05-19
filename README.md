@@ -4,5 +4,5 @@ wip. Based on https://github.com/libbymiller/sock_puppet and https://github.com/
 
 # INSTALL
 
-see readmes in server and pi
+see readmes in server, server/public and pi
 

@@ -1,7 +1,7 @@
 <html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+<script src="../peerjs.js"></script>
 
 <style type="text/css">
 .emoji {
@@ -78,7 +78,15 @@ video {
 
 <script>
 
-var peer = new Peer({key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true});
+var peer = new Peer(
+  {key: 'peerjs', host: 'myserver.example.com', path: "/",debug:3, port: 443, secure: true,
+   config: {'iceServers': [
+            { url: 'turn:myserver.example.com:3478?transport=udp', username: 'mozbot1', credential: 'mozbot1' },
+            { url: 'turn:myserver.example.com:3478?transport=tcp', username: 'mozbot1', credential: 'mozbot1' }
+          ]}
+  }
+
+);
 
 var bot_id = window.location.hash.substr(1);
 if( bot_id == ""){
@@ -126,8 +134,10 @@ function endCall(){
      call.close();//this doesn't do anything
    }
    console.log("closing call");
-   conn_for_later.close();
-   let remoteElement = document.querySelector("#"+bot_id);
+//   conn_for_later.close();
+   peer.destroy();
+//   peer.disconnect();
+   let remoteElement = document.querySelector("#id_"+bot_id);
    remoteElement.parentNode.removeChild(remoteElement);
 }
 
@@ -148,7 +158,7 @@ async function callUser() {
   //get the mic only
   local_stream = await navigator.mediaDevices.getUserMedia({
     video: false,
-    audio: true,
+    audio: {sampleRate: 16000}
   });
 
   // make the call
@@ -192,7 +202,7 @@ async function callUser() {
       video.controls = 'true';
       video.autoplay = 'true';
       video.setAttribute("playsinline",'true');
-      video.id = bot_id;
+      video.id = "id_"+bot_id;
       document.getElementById("av").appendChild(video);
       video.srcObject = remoteStream;
       video.play();

@@ -13,6 +13,7 @@ from time import sleep
 
 from SimpleWebSocketServer import SimpleWebSocketServer, WebSocket
 
+
 # setup the GPIO pin for the servo
 servo_pin_lr = 12
 servo_pin_ud = 13
@@ -27,6 +28,19 @@ pwm_ud = GPIO.PWM(servo_pin_ud,50) # 50 Hz (20 ms PWM period)
 
 last_lr = 0
 last_ud = 0
+
+
+present = False
+t1 = None
+
+def foo():
+       global present
+       while True:
+         time.sleep(6)
+         if(present == False):
+            print("BREAK!")
+            break
+
 
 def pan(to):
    global last_lr
@@ -47,6 +61,8 @@ class SimpleEcho(WebSocket):
     def handleMessage(self):
         global last_lr
         global last_ud
+        global present
+        global t1
         command = self.data
         print("command",command)
 
@@ -100,26 +116,27 @@ class SimpleEcho(WebSocket):
 # used by the software mostly
         if(command == "gone"):
 
-          t = servo_ud.angle
-          p = servo_lr.angle
+#          try:
+ #           tilt(6.0)
+  #          pan(6.0)
+   #       except:
+    #        traceback.print_exc()
 
+          present = False
           try:
-            tilt(6.0)
-            pan(6.0)
+            t1.join()
           except:
             traceback.print_exc()
 
         if(command == "arrived"):
 
-          t = 6.0
-          p = 6.0
-
           try:
-            tilt(6.0)
+            tilt(2.0)
             time.sleep(0.5)
             pan(6.0)
           except:
             traceback.print_exc()
+
 
         if(command == "leaving"):
           tilt(6.0)
@@ -164,4 +181,3 @@ pwm_ud.ChangeDutyCycle(0)
 
 server = SimpleWebSocketServer('', 80, SimpleEcho)
 server.serveforever()
-
