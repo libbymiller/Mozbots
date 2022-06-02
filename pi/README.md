@@ -146,14 +146,14 @@ LED_COUNT   = 24      # Number of LED pixels.
 LED_ORDER = neopixel.GRBW
 
 
-sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
-sudo pip3 install adafruit-blinka
-sudo apt install python3-numpy
+    sudo pip3 install rpi_ws281x adafruit-circuitpython-neopixel
+    sudo pip3 install adafruit-blinka
+    sudo apt install python3-numpy
 
 ----
 
 todo
 
-lower volume
+lower volume?
 
 
